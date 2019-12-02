@@ -14,12 +14,13 @@ int main(){
 	printf("Failed to open the device... error #%d\n", fd);
 	return errno;
     }
-    char * xx = "wuehfulalalalalalalalalalalaalalaalalwiuefhweuirhfuywrgyuwgrfgwr111";
+    char * xx = "hellobufoonasdfgh";
     msgSize = write(fd, xx, strlen(xx));
     printf("write return: %d\n", msgSize);
     ret = read(fd, receive, 16);
     if (ret < 0){
 	printf("Failed to read the message from the device. error #%d\n", ret);
+	close(fd);
 	return errno;
     }
     printf("The received encryption key is: [%s]\n", receive);
@@ -27,8 +28,10 @@ int main(){
     ret = read(fd, receive, msgSize);
     if (ret < 0){
 	printf("Failed to read the message from the device. error #%d\n", ret);
+	close(fd);
 	return errno;
     }
+    close(fd);
     printf("The received encrypted message is: [%s]\n", receive);
     printf("End of the program\n");
     return 0;

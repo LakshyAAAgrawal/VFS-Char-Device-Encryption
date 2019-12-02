@@ -37,8 +37,13 @@ static struct file_operations fops = {
 };
 
 static int __init encdev_init(void){
+  int xx;
     numberOpens = 0;
     majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
+    encryptedMessage = kmalloc(200, GFP_KERNEL);
+    for(xx = 0; xx < 200; xx++){
+      encryptedMessage[xx] = '0';
+    }
     if (majorNumber<0){
 	return majorNumber;
     }
@@ -58,10 +63,11 @@ static int __init encdev_init(void){
 }
 
 static void __exit encdev_exit(void){
-    device_destroy(encdevClass, MKDEV(majorNumber, 0));
-    class_unregister(encdevClass);
-    class_destroy(encdevClass);
-    unregister_chrdev(majorNumber, DEVICE_NAME);
+  kfree(encryptedMessage);
+  device_destroy(encdevClass, MKDEV(majorNumber, 0));
+  class_unregister(encdevClass);
+  class_destroy(encdevClass);
+  unregister_chrdev(majorNumber, DEVICE_NAME);
 }
 
 static char * genEncryptionKey(void){
@@ -82,13 +88,18 @@ static int dev_open(struct inode *inodep, struct file *filep){
 }
 
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
+  int xx;
     if(isKeyRead){
 	if(len != strlen(encryptedMessage)){
+	    printk("encdev: read len != strlen");
 	    return -EFAULT;
 	}
 	if(copy_to_user(buffer, encryptedMessage, strlen(encryptedMessage)) == 0){
-	    kfree(encryptedMessage);
-	    return(strlen(encryptedMessage));
+	  int ll = strlen(encryptedMessage);
+	  for(xx = 0; xx < 200; xx++){
+	    encryptedMessage[xx] = '0';
+	  }
+	  return(ll);
 	}else{
 	    return -EFAULT;
 	}
@@ -106,11 +117,17 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 }
 
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset){
-    encryptedMessage = kmalloc(len, GFP_KERNEL);
+    int newLength = len + (16 - (len%16));
+    int t, j;
     copy_from_user(encryptedMessage, buffer, len);
-    encryptedMessage[len] = '\0';
-    printk("encdev: write - received %d %d %s", len,strlen(encryptedMessage), encryptedMessage);
-    return strlen(encryptedMessage);
+    encryptedMessage[newLength] = '\0';
+    for(t = 0; t < newLength / 16; t++){
+      for(j = 0; j < 16; j++){
+	
+      }
+    }
+    printk("encdev: write - received %d %d %s", len, strlen(encryptedMessage), encryptedMessage);
+    return newLength;
 }
 
 static int dev_release(struct inode *inodep, struct file *filep){
