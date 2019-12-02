@@ -11,7 +11,7 @@ int main(){
     char * encryptionKey = malloc(17);
     char source[1000000];
     char * toEncrypt = malloc(150 * sizeof(char));
-    FILE *fp = fopen("toEncrypt", "r");
+    FILE *fp = fopen("encrypted", "r");
     if(fp != NULL){
       char symbol;
       while((symbol = getc(fp)) != EOF){
@@ -25,21 +25,14 @@ int main(){
     }
     toEncrypt[149] = '\0';
     printf("file contents - %s\n", toEncrypt);
-    fd = open("/dev/encdev", O_RDWR);
+    fd = open("/dev/decdev", O_RDWR);
     if (fd < 0){
       printf("Failed to open the device... error #%d\n", fd);
       return errno;
     }
     msgSize = write(fd, toEncrypt, strlen(toEncrypt));
     printf("write return: %d\n", msgSize);
-    ret = read(fd, encryptionKey, 16);
-    if (ret < 0){
-	printf("Failed to read the message from the device. error #%d\n", ret);
-	close(fd);
-	return errno;
-    }
     printf("The received encryption key is: [%s]\n", encryptionKey);
-    
     ret = read(fd, receive, msgSize);
     if (ret < 0){
 	printf("Failed to read the message from the device. error #%d\n", ret);
@@ -49,8 +42,7 @@ int main(){
     close(fd);
     printf("The received encrypted message is: [%s]\n", receive);
 
-    FILE *file = fopen("encrypted", "w");
-    fputs(encryptionKey, file);
+    FILE *file = fopen("decrypted", "w");
     fputs(receive, file);
     fclose(file);
     
