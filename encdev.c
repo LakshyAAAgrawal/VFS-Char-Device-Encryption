@@ -19,7 +19,7 @@ static struct class * encdevClass  = NULL;
 static struct device * encdev = NULL;
 
 static int numberOpens;
-char[16] encryptionKey;
+char * encryptionKey;
 char * encryptedMessage;
 
 static int dev_open(struct inode *, struct file *);
@@ -49,9 +49,9 @@ static int __init encdev_init(void){
 	if (IS_ERR(encdev)){
 		class_destroy(encdevClass);
 		unregister_chrdev(majorNumber, DEVICE_NAME);
-		return PTR_ERR(ebbcharDevice);
+		return PTR_ERR(encdev);
 	}
-	printk(KERNALERT "encdev: Module initialized");
+	printk(KERN_ALERT "encdev: Module initialized");
 	return 0;
 }
 
@@ -62,36 +62,41 @@ static void __exit encdev_exit(void){
 	unregister_chrdev(majorNumber, DEVICE_NAME);
 }
 
+static char * genEncryptionKey(void){
+  return "1234567890123456";
+}
+
 static int dev_open(struct inode *inodep, struct file *filep){
 	if(numberOpens == 0){
-	    get_random_bytes(&encryptionKey, 16);
-		numberOpens = 1;
-		printk(KERNALERT "encdev: Device opened");
-		printk(KERNALERT "encdev: Encryption key: %s", encryptionKey);
-		return 0;
+	  encryptionKey = genEncryptionKey();
+	  numberOpens = 1;
+	  printk(KERN_ALERT "encdev: Device opened");
+	  printk(KERN_ALERT "encdev: Encryption key: %s", encryptionKey);
+	  return 0;
 	}
 	return -1;
 }
 
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
-	int error_count = 0;
-	error_count = copy_to_user(buffer, message, size_of_message);
+  int error_count = 0;
+	error_count = copy_to_user(buffer, "hey", 3);
 	if (error_count==0){
-		return (size_of_message=0);
+	  return (20);
 	}else{
-		return -EFAULT;
+	  return -EFAULT;
 	}
+	return 0;
 }
 
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset){
-	
-	sprintf(message, "%s(%zu letters)", buffer, len);
-	size_of_message = strlen(message);
-	return len;
+  
+  sprintf(encryptionKey, "%s(%zu letters)", buffer, len);
+  strlen("message");  
+  return len;
 }
 
 static int dev_release(struct inode *inodep, struct file *filep){
-	return 0;
+  return 0;
 }
 
 module_init(encdev_init);
