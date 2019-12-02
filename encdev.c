@@ -76,6 +76,7 @@ static int dev_open(struct inode *inodep, struct file *filep){
 	  printk(KERN_ALERT "encdev: Encryption key: %s", encryptionKey);
 	  return 0;
 	}
+	printk("encdev: failed open attemt");
 	return -1;
 }
 
@@ -108,7 +109,8 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
 }
 
 static int dev_release(struct inode *inodep, struct file *filep){
-	return 0;
+  numberOpens = 0;
+  return 0;
 }
 
 module_init(encdev_init);
