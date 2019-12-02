@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 #define DEVICE_NAME "encdev"
 #define CLASS_NAME "lakshyaEnc"
@@ -36,81 +37,85 @@ static struct file_operations fops = {
 };
 
 static int __init encdev_init(void){
-	numberOpens = 0;
-	majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
-	if (majorNumber<0){
-		return majorNumber;
-	}
-	encdevClass = class_create(THIS_MODULE, CLASS_NAME);
-	if (IS_ERR(encdevClass)){
-		unregister_chrdev(majorNumber, DEVICE_NAME);
-		return PTR_ERR(encdevClass);
-	}
-	encdev = device_create(encdevClass, NULL, MKDEV(majorNumber, 0), NULL, DEVICE_NAME);
-	if (IS_ERR(encdev)){
-		class_destroy(encdevClass);
-		unregister_chrdev(majorNumber, DEVICE_NAME);
-		return PTR_ERR(encdev);
-	}
-	printk(KERN_ALERT "encdev: Module initialized");
-	return 0;
+    numberOpens = 0;
+    majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
+    if (majorNumber<0){
+	return majorNumber;
+    }
+    encdevClass = class_create(THIS_MODULE, CLASS_NAME);
+    if (IS_ERR(encdevClass)){
+	unregister_chrdev(majorNumber, DEVICE_NAME);
+	return PTR_ERR(encdevClass);
+    }
+    encdev = device_create(encdevClass, NULL, MKDEV(majorNumber, 0), NULL, DEVICE_NAME);
+    if (IS_ERR(encdev)){
+	class_destroy(encdevClass);
+	unregister_chrdev(majorNumber, DEVICE_NAME);
+	return PTR_ERR(encdev);
+    }
+    printk(KERN_ALERT "encdev: Module initialized");
+    return 0;
 }
 
 static void __exit encdev_exit(void){
-	device_destroy(encdevClass, MKDEV(majorNumber, 0));
-	class_unregister(encdevClass);
-	class_destroy(encdevClass);
-	unregister_chrdev(majorNumber, DEVICE_NAME);
+    device_destroy(encdevClass, MKDEV(majorNumber, 0));
+    class_unregister(encdevClass);
+    class_destroy(encdevClass);
+    unregister_chrdev(majorNumber, DEVICE_NAME);
 }
 
 static char * genEncryptionKey(void){
-  return "1234567890123456";
+    return "1234567890123456";
 }
 
 static int dev_open(struct inode *inodep, struct file *filep){
-	if(numberOpens == 0){
-	  encryptionKey = genEncryptionKey();
-	  numberOpens = 1;
-	  isKeyRead = FALSE;
-	  printk(KERN_ALERT "encdev: Device opened");
-	  printk(KERN_ALERT "encdev: Encryption key: %s", encryptionKey);
-	  return 0;
-	}
-	printk("encdev: failed open attemt");
-	return -1;
+    if(numberOpens == 0){
+	encryptionKey = genEncryptionKey();
+	numberOpens = 1;
+	isKeyRead = FALSE;
+	printk(KERN_ALERT "encdev: Device opened");
+	printk(KERN_ALERT "encdev: Encryption key: %s", encryptionKey);
+	return 0;
+    }
+    printk("encdev: failed open attemt");
+    return -1;
 }
 
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
-	if(isKeyRead){
-		if(len != strlen(encryptedMessage)){
-			return -EFAULT;
-		}
-		if(copy_to_user(buffer, encryptedMessage, strlen(encryptedMessage)) == 0){
-			return(strlen(encryptedMessage));
-		}else{
-			return -EFAULT;
-		}
-	}else{
-		if(len != 16){
-			return -EFAULT;
-		}
-		if(copy_to_user(buffer, encryptionKey, 16) == 0){
-			isKeyRead = TRUE;
-			return(16);
-		}else{
-			return -EFAULT;
-		}
+    if(isKeyRead){
+	if(len != strlen(encryptedMessage)){
+	    return -EFAULT;
 	}
+	if(copy_to_user(buffer, encryptedMessage, strlen(encryptedMessage)) == 0){
+	    kfree(encryptedMessage);
+	    return(strlen(encryptedMessage));
+	}else{
+	    return -EFAULT;
+	}
+    }else{
+	if(len != 16){
+	    return -EFAULT;
+	}
+	if(copy_to_user(buffer, encryptionKey, 16) == 0){
+	    isKeyRead = TRUE;
+	    return(16);
+	}else{
+	    return -EFAULT;
+	}
+    }
 }
 
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset){
-	encryptedMessage = "Hey this is wonderful";
-	return strlen(encryptedMessage);
+    encryptedMessage = kmalloc(len, GFP_KERNEL);
+    copy_from_user(encryptedMessage, buffer, len);
+    encryptedMessage[len] = '\0';
+    printk("encdev: write - received %d %d %s", len,strlen(encryptedMessage), encryptedMessage);
+    return strlen(encryptedMessage);
 }
 
 static int dev_release(struct inode *inodep, struct file *filep){
-  numberOpens = 0;
-  return 0;
+    numberOpens = 0;
+    return 0;
 }
 
 module_init(encdev_init);
