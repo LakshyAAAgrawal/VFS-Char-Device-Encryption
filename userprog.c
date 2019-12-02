@@ -7,15 +7,30 @@
 
 int main(){
     int ret, fd, msgSize;
-    char * receive = malloc(100);
-    printf("Starting device test code example...\n");
+    char * receive = malloc(200);
+
+    char source[1000000];
+    char * toEncrypt = malloc(150 * sizeof(char));
+    FILE *fp = fopen("encrypted", "r");
+    if(fp != NULL){
+      char symbol;
+      while((symbol = getc(fp)) != EOF){
+	strcat(source, &symbol);
+      }
+      fclose(fp);
+    }
+
+    for(int i = 0; i < 150; i++){
+      toEncrypt[i] = source[i];
+    }
+    toEncrypt[149] = '\0';
+    printf("file contents - %s\n", toEncrypt);
     fd = open("/dev/encdev", O_RDWR);
     if (fd < 0){
-	printf("Failed to open the device... error #%d\n", fd);
-	return errno;
+      printf("Failed to open the device... error #%d\n", fd);
+      return errno;
     }
-    char * xx = "hellobufoonasdfgh";
-    msgSize = write(fd, xx, strlen(xx));
+    msgSize = write(fd, toEncrypt, strlen(toEncrypt));
     printf("write return: %d\n", msgSize);
     ret = read(fd, receive, 16);
     if (ret < 0){
@@ -33,6 +48,12 @@ int main(){
     }
     close(fd);
     printf("The received encrypted message is: [%s]\n", receive);
+
+    FILE *file = fopen("encrypted2", "w");
+    
+    int results = fputs(receive, file);
+    fclose(file);
+    
     printf("End of the program\n");
     return 0;
 }

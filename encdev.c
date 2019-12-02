@@ -122,6 +122,7 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
     int t, j;
     copy_from_user(encryptedMessage, buffer, len);
     encryptedMessage[newLength] = '\0';
+    printk("encdev: write - received %d %d %s", len, strlen(encryptedMessage), encryptedMessage);
     for(t = 0; t < newLength / 16; t++){
       for(j = 0; j < 16; j++){
 	encryptedMessage[t*16 + j] = encryptionKey[j] ^ encryptedMessage[t*16 + j];
