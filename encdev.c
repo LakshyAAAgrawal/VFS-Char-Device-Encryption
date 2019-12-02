@@ -23,6 +23,7 @@ static int numberOpens;
 char * encryptionKey;
 char * encryptedMessage;
 int isKeyRead = FALSE;
+int Length;
 
 static int dev_open(struct inode *, struct file *);
 static int dev_release(struct inode *, struct file *);
@@ -41,6 +42,7 @@ static int __init encdev_init(void){
     numberOpens = 0;
     majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
     encryptedMessage = kmalloc(200, GFP_KERNEL);
+    Length = 0;
     for(xx = 0; xx < 200; xx++){
       encryptedMessage[xx] = '0';
     }
@@ -90,16 +92,15 @@ static int dev_open(struct inode *inodep, struct file *filep){
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
   int xx;
     if(isKeyRead){
-	if(len != strlen(encryptedMessage)){
+	if(len != Length){
 	    printk("encdev: read len != strlen");
 	    return -EFAULT;
 	}
-	if(copy_to_user(buffer, encryptedMessage, strlen(encryptedMessage)) == 0){
-	  int ll = strlen(encryptedMessage);
+	if(copy_to_user(buffer, encryptedMessage, Length) == 0){
 	  for(xx = 0; xx < 200; xx++){
 	    encryptedMessage[xx] = '0';
 	  }
-	  return(ll);
+	  return(Length);
 	}else{
 	    return -EFAULT;
 	}
@@ -123,15 +124,17 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
     encryptedMessage[newLength] = '\0';
     for(t = 0; t < newLength / 16; t++){
       for(j = 0; j < 16; j++){
-	
+	encryptedMessage[t*16 + j] = encryptionKey[j] ^ encryptedMessage[t*16 + j];
       }
     }
     printk("encdev: write - received %d %d %s", len, strlen(encryptedMessage), encryptedMessage);
+    Length = newLength;
     return newLength;
 }
 
 static int dev_release(struct inode *inodep, struct file *filep){
     numberOpens = 0;
+    Length = 0;
     return 0;
 }
 
