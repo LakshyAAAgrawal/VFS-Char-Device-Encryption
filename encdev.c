@@ -21,6 +21,7 @@ static struct device * encdev = NULL;
 static int numberOpens;
 char * encryptionKey;
 char * encryptedMessage;
+int isKeyRead = FALSE;
 
 static int dev_open(struct inode *, struct file *);
 static int dev_release(struct inode *, struct file *);
@@ -70,6 +71,7 @@ static int dev_open(struct inode *inodep, struct file *filep){
 	if(numberOpens == 0){
 	  encryptionKey = genEncryptionKey();
 	  numberOpens = 1;
+	  isKeyRead = FALSE;
 	  printk(KERN_ALERT "encdev: Device opened");
 	  printk(KERN_ALERT "encdev: Encryption key: %s", encryptionKey);
 	  return 0;
@@ -78,25 +80,35 @@ static int dev_open(struct inode *inodep, struct file *filep){
 }
 
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
-  int error_count = 0;
-	error_count = copy_to_user(buffer, "hey", 3);
-	if (error_count==0){
-	  return (20);
+	if(isKeyRead){
+		if(len != strlen(encryptedMessage)){
+			return -EFAULT;
+		}
+		if(copy_to_user(buffer, encryptedMessage, strlen(encryptedMessage)) == 0){
+			return(strlen(encryptedMessage));
+		}else{
+			return -EFAULT;
+		}
 	}else{
-	  return -EFAULT;
+		if(len != 16){
+			return -EFAULT;
+		}
+		if(copy_to_user(buffer, encryptionKey, 16) == 0){
+			isKeyRead = TRUE;
+			return(16);
+		}else{
+			return -EFAULT;
+		}
 	}
-	return 0;
 }
 
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset){
-  
-  sprintf(encryptionKey, "%s(%zu letters)", buffer, len);
-  strlen("message");  
-  return len;
+	encryptedMessage = "Hey this is wonderful";
+	return strlen(encryptedMessage);
 }
 
 static int dev_release(struct inode *inodep, struct file *filep){
-  return 0;
+	return 0;
 }
 
 module_init(encdev_init);
