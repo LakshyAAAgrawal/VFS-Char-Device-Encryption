@@ -32,7 +32,6 @@ int main(){
     }
     msgSize = write(fd, toEncrypt, strlen(toEncrypt));
     printf("write return: %d\n", msgSize);
-    printf("The received encryption key is: [%s]\n", encryptionKey);
     ret = read(fd, receive, msgSize);
     if (ret < 0){
 	printf("Failed to read the message from the device. error #%d\n", ret);

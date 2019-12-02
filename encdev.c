@@ -5,6 +5,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/random.h>
 
 #define DEVICE_NAME "encdev"
 #define CLASS_NAME "lakshyaEnc"
@@ -42,6 +43,7 @@ static int __init encdev_init(void){
     numberOpens = 0;
     majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
     encryptedMessage = kmalloc(200, GFP_KERNEL);
+    encryptionKey = kmalloc(17, GFP_KERNEL);
     Length = 0;
     for(xx = 0; xx < 200; xx++){
       encryptedMessage[xx] = '0';
@@ -66,27 +68,32 @@ static int __init encdev_init(void){
 
 static void __exit encdev_exit(void){
   kfree(encryptedMessage);
+  kfree(encryptionKey);
   device_destroy(encdevClass, MKDEV(majorNumber, 0));
   class_unregister(encdevClass);
   class_destroy(encdevClass);
   unregister_chrdev(majorNumber, DEVICE_NAME);
 }
 
-static char * genEncryptionKey(void){
-    return "1234567890123456";
-}
 
 static int dev_open(struct inode *inodep, struct file *filep){
-    if(numberOpens == 0){
-	encryptionKey = genEncryptionKey();
-	numberOpens = 1;
-	isKeyRead = FALSE;
-	printk(KERN_ALERT "encdev: Device opened");
-	printk(KERN_ALERT "encdev: Encryption key: %s", encryptionKey);
-	return 0;
+  unsigned int rand;
+  int t;
+  if(numberOpens == 0){
+    for(t = 0; t < 16; t++){
+      get_random_bytes(&rand, sizeof(rand));
+      encryptionKey[t] = (rand%10) + 48;
     }
-    printk("encdev: failed open attemt");
-    return -1;
+    encryptionKey[16] = '\0';
+    //encryptionKey = "1234567890123456";
+    numberOpens = 1;
+    isKeyRead = FALSE;
+    printk(KERN_ALERT "encdev: Device opened");
+    printk(KERN_ALERT "encdev: Encryption key: %s", encryptionKey);
+    return 0;
+    }
+  printk("encdev: failed open attemt");
+  return -1;
 }
 
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
