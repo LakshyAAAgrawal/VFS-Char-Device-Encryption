@@ -1,4 +1,4 @@
-# VFS Block Encryption
+# VFS Char Device Encryption
 ## Description of the module and implementation:
     The system consists of 4 files:
 	1. encdev.c
